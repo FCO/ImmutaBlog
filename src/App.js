@@ -14,8 +14,8 @@ class Lifo {
 		while(tail) {
 			console.log(tail)
 			const value = (await ipfs.dag.get(tail)).value
-			hash = tail
-			tail = value.prev ? value.prev.toString() : null
+			hash        = tail
+			tail        = value.prev ? value.prev.toString() : null
 			yield { ...value, hash }
 		}
 	}
@@ -37,98 +37,145 @@ class App extends Component {
 	constructor() {
 		super()
 		const name      = null
-		const hash      = localStorage.getItem("immutablog")
 		const ipns      = localStorage.getItem("immutablog-ipns")
 		const head      = null
 		const following = {}
 		const log       = []
-		this.state = { name, hash, head, following, log, ipns }
+		this.state = { name, hash: null, head, following, log, ipns, age: 0 }
 	}
 	async componentDidMount() {
-		ipfs = await IPFS.create()
-		if(this.state.hash) {
-			await this.load(this.state.hash)
+		ipfs = await IPFS.create({
+			EXPERIMENTAL: {
+				pubsub       : true,
+				namesysPubsub: true,
+			}
+		})
+		window.ipfs = ipfs
+		if(this.state.ipns) {
+			await this.load(this.state.ipns)
 		}
 	}
 	async componentWillUnmount() {
 		await ipfs.stop()
 	}
+	// ipfs.name.resolve is not working on browser
 	async getHeadOfFollowing(following) {
 		console.table(following)
-		const promList = Object.keys(following).map(async (name) => await last(ipfs.name.resolve(following[name])))
+		const promList = Object.keys(following).map(async (name) => {
+			console.log(`name: ${ following[name] }`)
+			console.log(await ipfs.name.resolve(following[name]))
+			return new Lifo(await last(ipfs.name.resolve(following[name])))
+		})
 		console.log(promList)
 		return await Promise.all(promList)
 	}
 	async getLog(head, following) {
+		let { age } = this.state
 		console.table({ head, following })
 		let log = [];
 		console.log(`head: ${ head }`)
 		const lifo = new Lifo(head)
+		// ipfs.name.resolve is not working on browser
 		//let foll
 		//if(following)
 		//	foll = await this.getHeadOfFollowing(following)
-		//console.log(foll)
 		//const all  = [ lifo, ...foll ]
+		//console.log(all)
 		for await (const item of lifo) {
 			console.table(item)
 			log.push(item)
+			if(item.age > age)
+				this.setState({ age: item.age })
 		}
 		return log
 	}
 	async createVersion(name) {
 		console.log(`name: ${ name }`)
 		console.table(this.state)
-		const { hash: orig, head, following = {} } = this.state
+		const { head, following = {} } = this.state
 		const log  = await this.getLog(head, following)
-		const hash = await this.save({ name, hash: orig, head, following, log })
+		const hash = await this.save({ name, log })
 		console.log(`hash: ${ hash }`)
 	}
 	async createLog(body) {
 		console.table(this.state)
-		const { hash, head: oldHead, name, log = [], following = {} } = this.state
+		const { ipns, hash, head: oldHead, name, log = [] } = this.state
+		let { age } = this.state
 		const cid = await ipfs.dag.put({
-			prev : oldHead,
+			from    : ipns,
+			fromHash: hash,
+			prev    : oldHead,
+			age     : age++,
 			name,
-			body
+			body,
 		})
 		const head = cid.toString()
-		log.unshift({ name, body, head, hash: head })
-		await this.save({ name, hash, head, following, log })
+		const msg = { name, body, head, hash: head }
+		log.unshift(msg)
+		ipfs.pubsub.publish(ipns, JSON.stringify(msg))
+		await this.save({ name, head, log, age })
 	}
-	async load(hash) {
-		console.log(`load(${ hash })`)
+	async load(ipns) {
+		console.log(`load(${ ipns })`)
 		console.table(this.state)
-		const { name = "", head: maybeHead, following } = (await ipfs.dag.get(this.state.hash)).value
+		const hash = await last(ipfs.name.resolve(ipns))
+		console.log(`hash: ${ hash }`)
+		let { name = "", head: maybeHead, following, age } = (await ipfs.dag.get(hash)).value
 		const head = maybeHead !== null && maybeHead !== undefined ? maybeHead.toString() : null;
 		const log = await this.getLog(head, following)
-		this.setState({ name, head, following, log })
+		if(following) {
+			await Promise.all(
+				Object.values(following).map(
+					async (user) => {
+						console.log(`subscribing: ${ user }`)
+						ipfs.pubsub.subscribe(user,
+							({ from, data }) => {
+								console.log(`received data: `, { from, data: data.toString() })
+								if(user !== from) return;
+								const msg = JSON.parse(data.toString())
+								if(age < msg.age) age = msg.age
+								log.unshift(msg)
+							}
+						)
+					}
+				)
+			)
+		}
+		this.setState({ hash, name, head, following, log, age: age })
 		console.table(this.state)
 	}
-	async save({ name, hash: orig, head, following, log }) {
-		console.table({ name, hash: orig, head, following, log })
+	async save({
+		name       = this.state.name,
+		hash: orig = this.state.hash,
+		head       = this.state.head,
+		following  = this.state.following,
+		log        = this.state.log,
+		age        = this.state.age + 1
+	}) {
+		console.table({ name, hash: orig, head, following, log, age })
 		const cid  = await ipfs.dag.put({
 			"parent"  : orig,
 			name,
 			head,
 			following,
+			age
 		})
 		const hash = cid.toString()
-		localStorage.setItem("immutablog", hash)
-		const ipns = await ipfs.name.publish(cid, { allowOffline: true })
-		console.table(ipns)
+		const ipns = await ipfs.name.publish(cid)
 		localStorage.setItem("immutablog-ipns", ipns.name)
-		this.setState({ name, hash, head, following, log, ipns: ipns.name })
+		this.setState({ name, hash, head, following, log, ipns: ipns.name, age })
 		console.table(this.state)
+		return hash
 	}
 
 	render() {
-		const { hash, ipns, head, following = {}, log = [] } = this.state
-		if(this.state.hash) {
+		const { hash, ipns, following = {}, log = [] } = this.state
+		if(ipns) {
 			console.table(this.state)
 			return (
 				<div>
+					<pre>/ipns/{ ipns }</pre>
 					<pre>{ hash }</pre>
-					<pre>{ ipns }</pre>
 					<div>
 						<h4>Following</h4>
 						<form
@@ -141,10 +188,7 @@ class App extends Component {
 									e.target.cid.value  = ""
 									this.save({
 										name,
-										hash,
-										head,
-										log,
-										following: { ...following, [name]: cid }
+										following: { ...following, [name]: cid },
 									})
 								}
 							}
@@ -153,7 +197,7 @@ class App extends Component {
 								<tbody>
 									{
 										Object.keys(following).sort().map(
-											name => <tr key={name}>
+											name => <tr key={ name }>
 												<td>{ name }</td>
 												<td><pre>{ following[name] }</pre></td>
 											</tr>
