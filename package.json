@@ -2,11 +2,13 @@
   "name": "immutablog",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://fco.github.io/immutablog",
   "dependencies": {
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "cids": "^0.5.8",
+    "gh-pages": "^3.1.0",
     "ipfs-core": "^0.5.4",
     "it-last": "^1.0.5",
     "react": "^17.0.2",
@@ -21,6 +23,8 @@
     "eject": "react-scripts eject",
     "prepublish": "npm run build",
     "publish": "ipfs add -r build"
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
