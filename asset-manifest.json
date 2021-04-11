@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/immutablog/static/css/main.6dea0f05.chunk.css",
+    "main.js": "/immutablog/static/js/main.fba3ce2a.chunk.js",
+    "main.js.map": "/immutablog/static/js/main.fba3ce2a.chunk.js.map",
+    "runtime-main.js": "/immutablog/static/js/runtime-main.2cfe1244.js",
+    "runtime-main.js.map": "/immutablog/static/js/runtime-main.2cfe1244.js.map",
+    "static/js/2.e683b04a.chunk.js": "/immutablog/static/js/2.e683b04a.chunk.js",
+    "static/js/2.e683b04a.chunk.js.map": "/immutablog/static/js/2.e683b04a.chunk.js.map",
+    "static/js/3.22a19c0c.chunk.js": "/immutablog/static/js/3.22a19c0c.chunk.js",
+    "static/js/3.22a19c0c.chunk.js.map": "/immutablog/static/js/3.22a19c0c.chunk.js.map",
+    "index.html": "/immutablog/index.html",
+    "static/css/main.6dea0f05.chunk.css.map": "/immutablog/static/css/main.6dea0f05.chunk.css.map",
+    "static/js/2.e683b04a.chunk.js.LICENSE.txt": "/immutablog/static/js/2.e683b04a.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.2cfe1244.js",
+    "static/js/2.e683b04a.chunk.js",
+    "static/css/main.6dea0f05.chunk.css",
+    "static/js/main.fba3ce2a.chunk.js"
+  ]
+}
