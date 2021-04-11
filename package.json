@@ -22,7 +22,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "prepublish": "npm run build",
-    "publish": "ipfs add -r build"
+    "publish": "ipfs add -r build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
   },
